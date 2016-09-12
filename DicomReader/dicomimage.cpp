@@ -198,13 +198,13 @@ namespace {
 } // annonymouse namespace
 
 dicomImage::dicomImage()
-  :_pData(0),_pDataOld(0)
+  :_pData(0), _pDataOld(0), pixelCount(256, 0)
 {
 }
 
 
 dicomImage::dicomImage(const string& filename)
-  :_fileName(filename),_pData(0),_pDataOld(0) {}
+  : _fileName(filename), _pData(0), _pDataOld(0), pixelCount(256, 0) {}
 
 dicomImage::~dicomImage() {
   delete [] _pData;
@@ -212,7 +212,18 @@ dicomImage::~dicomImage() {
 }
 
 void dicomImage::setFileName(const string& filename) {
+  if (filename == _fileName)
+    return;
+
   _fileName = filename;
+
+  delete[] _pData;
+  delete[] _pDataOld;
+  _pData = 0;
+  _pDataOld = 0;
+
+  pixelCount.clear();
+  pixelCount.resize(256);
 }
 
 unsigned char* dicomImage::pixel() {
@@ -240,6 +251,10 @@ int dicomImage::imageHeight() const {
 
 int dicomImage::imageWidth() const {
   return nCols;
+}
+
+const std::vector<int> dicomImage::imagePixelCount() const {
+  return pixelCount;
 }
 
 unsigned char*
@@ -372,17 +387,6 @@ unsigned char*
     nCount = nNumPixels;
     pp = (short *)_pData;
 
-    int pixelData = 0;
-    int pixel0024 = 0;
-    int pixel2549 = 0;
-    int pixel5074 = 0;
-    int pixel7599 = 0;
-    int pixel100124 = 0;
-    int pixel125149 = 0;
-    int pixel150174 = 0;
-    int pixel175199 = 0;
-    int pixel200224 = 0;
-    int pixel225255 = 0;
 
     while (nCount-- > 0)
     {
@@ -393,54 +397,21 @@ unsigned char*
         fValue = 255;
 
       *np ++ = (unsigned char) fValue;
-
-      pixelData = (int)fValue;
-
-      if (pixelData < 25) {
-        pixel0024++;
-      }
-      else if (pixelData >= 25 && pixelData < 50) {
-        pixel2549++;
-      }
-      else if (pixelData >= 50 && pixelData < 75) {
-        pixel5074++;
-      }
-      else if (pixelData >= 75 && pixelData < 100) {
-        pixel7599++;
-      }
-      else if (pixelData >= 100 && pixelData < 125) {
-        pixel100124++;
-      }
-      else if (pixelData >= 125 && pixelData < 150) {
-        pixel125149++;
-      }
-      else if (pixelData >= 150 && pixelData < 175) {
-        pixel150174++;
-      }
-      else if (pixelData >= 175 && pixelData < 200) {
-        pixel175199++;
-      }
-      else if (pixelData >= 200 && pixelData < 225) {
-        pixel200224++;
-      }
-      else {
-        pixel225255++;
-      }
     }
-
-    cout<<"Pixel data between   0 ~  24: "<<pixel0024<<endl;
-    cout<<"Pixel data between  25 ~  49: "<<pixel2549<<endl;
-    cout<<"Pixel data between  50 ~  74: "<<pixel5074<<endl;
-    cout<<"Pixel data between  75 ~  99: "<<pixel7599<<endl;
-    cout<<"Pixel data between 100 ~ 124: "<<pixel100124<<endl;
-    cout<<"Pixel data between 125 ~ 149: "<<pixel125149<<endl;
-    cout<<"Pixel data between 150 ~ 174: "<<pixel150174<<endl;
-    cout<<"Pixel data between 175 ~ 199: "<<pixel175199<<endl;
-    cout<<"Pixel data between 200 ~ 224: "<<pixel200224<<endl;
-    cout<<"Pixel data between 225 ~ 255: "<<pixel225255<<endl;
   }
 
-  return (unsigned char* )pNewData;
+  return (unsigned char*)pNewData;
+}
+
+void dicomImage::countPixels()
+{
+  long int counter = 0;
+  while (counter < nLength)
+  {
+    const int pixelData = (int)_pData[counter];
+    pixelCount[pixelData] = pixelCount.at(pixelData) + 1;
+    ++counter;
+  }
 }
 
 void dicomImage::readImage()
@@ -1032,6 +1003,8 @@ void dicomImage::readImage()
                 //                memcpy(_pDataOld, pNewData, nLength);
             }
         }
+
+        countPixels();
 #endif
     }
 }

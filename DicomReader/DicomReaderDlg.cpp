@@ -16,6 +16,7 @@ DicomReaderDlg::DicomReaderDlg(QWidget *parent)
     connect(ui.zoomSlider, SIGNAL(valueChanged(int)), SLOT(setZoomFactor(const int)));
     connect(ui.windowSlider, SIGNAL(valueChanged(int)), SLOT(setWindowLevel()));
     connect(ui.levelSlider, SIGNAL(valueChanged(int)), SLOT(setWindowLevel()));
+    connect(ui.pixelcurveCheckBox, SIGNAL(clicked(bool)), ui.glWidget, SLOT(showPixelCurve(bool)));
 }
 
 DicomReaderDlg::~DicomReaderDlg()

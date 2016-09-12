@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>636</width>
-    <height>532</height>
+    <width>800</width>
+    <height>800</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>600</width>
+    <height>600</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>DicomReader</string>
@@ -53,6 +59,13 @@
       <widget class="QPushButton" name="loadButton">
        <property name="text">
         <string>Load</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="pixelcurveCheckBox">
+       <property name="text">
+        <string>Pixel Curve</string>
        </property>
       </widget>
      </item>

@@ -63,6 +63,7 @@ public:
 public slots:
     void setZoomFactor(int zoom);
     void setWindowLevel(int window, int level);
+    void showPixelCurve(bool flag);
 //! [0]
 
 
@@ -78,6 +79,7 @@ private:
     QColor qtRed;
     QColor qtDark;
     dicomImage image;
+    bool pixelCurve;
 };
 //! [3]
 
