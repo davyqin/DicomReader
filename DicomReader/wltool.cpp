@@ -19,7 +19,10 @@ void wlTool::convert(unsigned char* pixel, int length) {
             *pixel = 0;
         }
         else {
-            *pixel = (*pixel - _level) * (_sk - _s1)/_window;
+          if (_window == 0) 
+            *pixel = 255;
+          else
+            *pixel = (*pixel - _level) * (_sk - _s1)/_window;            
         }
         pixel++;
     }
