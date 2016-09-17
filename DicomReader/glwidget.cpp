@@ -80,18 +80,7 @@ void GLWidget::paintGL(void)
    glPixelZoom (zoomFactor, zoomFactor);
    glDrawPixels(image.imageWidth(),  image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_BYTE, pData);
 
-   if (pixelCurve) {
-     glColor3f(255.0, 255.0, 0.0);
-     glBegin(GL_LINE_STRIP);
-     GLfloat xPos = 10.0;
-     const std::vector<int> pixelCount = image.imagePixelCount();
-     for (int i = 1; i < 256; ++i)
-     {
-       glVertex2f(xPos, pixelCount.at(i) / 50.0);
-       xPos += 2.0;
-     }
-     glEnd();
-   }
+   drawPixelCurve();
 
    glFlush();
 #endif
@@ -112,4 +101,52 @@ void GLWidget::setWindowLevel(int window, int level) {
     wlTool WLTool(window,level);
     WLTool.convert(pData, image.pixelLength());
     updateGL();
+}
+
+
+void GLWidget::drawPixelCurve()
+{
+  if (pixelCurve) {
+    drawRuler();
+    drawCurve();
+  }
+}
+
+void GLWidget::drawRuler()
+{
+  glColor3f(255.0, 0.0, 0.0);
+  GLint xPos = 1;
+  const GLint yPos = 10;
+  glBegin(GL_LINES);
+
+  // draw baseline
+  glVertex2i(xPos, yPos);
+  glVertex2i(512, yPos);
+
+  // draw teeth
+  for (int i = 0; i < 256; ++i)
+  {
+    GLint yHight = 5;
+    if ((int)xPos % 20 == 1)
+      yHight = 10;
+    glVertex2i(xPos, yPos);
+    glVertex2i(xPos, yPos + yHight);
+    xPos += 2;
+  }
+
+  glEnd();
+}
+
+void GLWidget::drawCurve()
+{
+  glColor3f(255.0, 255.0, 0.0);
+  GLfloat xPos = 10.0;
+  const std::vector<int> pixelCount = image.imagePixelCount();
+  glBegin(GL_LINE_STRIP);
+  for (int i = 5; i < 256; ++i)
+  {
+    glVertex2f(xPos, pixelCount.at(i) / 25.0 + 20.0);
+    xPos += 2.0;
+  }
+  glEnd();
 }

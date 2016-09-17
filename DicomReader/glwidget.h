@@ -76,6 +76,10 @@ protected:
 
 //! [3]
 private:
+  void drawPixelCurve();
+  void drawRuler();
+  void drawCurve();
+
     QColor qtRed;
     QColor qtDark;
     dicomImage image;

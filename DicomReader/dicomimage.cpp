@@ -435,7 +435,14 @@ void dicomImage::readImage()
     return;
   }
 
-  fp.seekg(132,ios_base::beg); //Skip dcm header
+  fp.seekg(128, ios_base::beg);
+  char szDicomFlag[5] = "";
+  fp.read((char*)szDicomFlag, 4);
+  szDicomFlag[4] = '\0';
+  if (string(szDicomFlag) != string("DICM")) {
+    return;
+  }
+
   string sHeader;
 
   while(!fp.eof()) {

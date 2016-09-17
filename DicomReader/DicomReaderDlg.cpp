@@ -3,7 +3,7 @@
 #include <QFileDialog>
 
 DicomReaderDlg::DicomReaderDlg(QWidget *parent)
-    : QDialog(parent)
+  : QDialog(parent, Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint)
 {
     ui.setupUi(this);
 
