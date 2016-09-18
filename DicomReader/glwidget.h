@@ -84,6 +84,8 @@ private:
     QColor qtDark;
     dicomImage image;
     bool pixelCurve;
+    int imageWindow;
+    int imageLevel;
 };
 //! [3]
 

@@ -110,6 +110,28 @@ namespace {
     return nValLength;
   }
 
+  long ReadOWLength(fstream& pcf, DATA_ENDIAN nDataEndian, bool bImplicitVR)
+  {
+    long int nValLength = 0;
+    int nsLength = 0;
+
+    if (bImplicitVR)
+    {
+      pcf.read((char *)&nValLength, sizeof(long));
+      if (nDataEndian == BIG_ENDIAN)
+        SwapDWord((char *)&nValLength, 1);
+    }
+    else
+    {
+      pcf.seekg(2, ios::cur);
+      pcf.read((char*)&nsLength, sizeof(int));
+      if (nDataEndian == BIG_ENDIAN)
+        SwapWord((char *)&nsLength, 1);
+      nValLength = nsLength >> 16;
+    }
+    return nValLength;
+  }
+
   int ReadString(fstream& pcf, char *pszStr, DATA_ENDIAN nDataEndian, bool bImplicitVR)
   {
     long int nValLength = 0;
@@ -668,6 +690,26 @@ void dicomImage::readImage()
         }
         break;
       }
+    case 0x0017:
+    {
+      switch (eTag)
+      {
+      case 0x105C: //OW
+      {
+        int nVal = ReadOWLength(fp, nDataEndian, bImplicitVR);
+        fp.seekg(nVal, ios::cur);
+        fp.seekg(2, ios::cur);
+        break;
+      }
+      default:
+      {
+        int nVal = ReadLength(fp, nDataEndian, bImplicitVR);
+        fp.seekg(nVal, ios::cur);
+        break;
+      }
+      }
+      break;
+    }
     case 0x0018:
       {
         switch(eTag)

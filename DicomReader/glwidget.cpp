@@ -15,7 +15,7 @@ namespace {
 } //namespace
 
 GLWidget::GLWidget( QWidget *parent)
-  : QGLWidget(parent), pixelCurve(false)
+  : QGLWidget(parent), pixelCurve(false), imageWindow(255), imageLevel(0)
 {
 }
 
@@ -97,6 +97,8 @@ void GLWidget::resizeGL(int width, int height)
 }
 
 void GLWidget::setWindowLevel(int window, int level) {
+    imageWindow = window;
+    imageLevel = level;
     memcpy(pData, pDataOriginal, image.pixelLength());
     wlTool WLTool(window,level);
     WLTool.convert(pData, image.pixelLength());
@@ -139,13 +141,18 @@ void GLWidget::drawRuler()
 
 void GLWidget::drawCurve()
 {
-  glColor3f(255.0, 255.0, 0.0);
-  GLfloat xPos = 10.0;
+  const int pixelSize = image.imageWidth() * image.imageHeight();
+  GLfloat xPos = 11.0;
   const std::vector<int> pixelCount = image.imagePixelCount();
   glBegin(GL_LINE_STRIP);
   for (int i = 5; i < 256; ++i)
   {
-    glVertex2f(xPos, pixelCount.at(i) / 25.0 + 20.0);
+    if (i >= imageLevel && i < (imageLevel + imageWindow))
+      glColor3f(255.0, 255.0, 0.0);
+    else
+      glColor3f(0.0, 255.0, 0.0);
+
+    glVertex2f(xPos, (float)pixelCount.at(i) / (float)pixelSize * (float)height() * 10.0 + 20.0);
     xPos += 2.0;
   }
   glEnd();
