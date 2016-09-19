@@ -10,6 +10,8 @@ public:
 
     void convert(unsigned char* pixel, int length);
 
+    void convertShortPixel(unsigned short* pixel, int length);
+
 private:
     int _window;
     int _level;

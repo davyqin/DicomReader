@@ -50,6 +50,12 @@ class GLWidget : public QGLWidget
     Q_OBJECT
 
 public:
+    enum PixelType
+    {
+      BytePixel,
+      ShortPixel
+    };
+
     GLWidget(QWidget *parent = 0);
     ~GLWidget();
 
@@ -64,6 +70,7 @@ public slots:
     void setZoomFactor(int zoom);
     void setWindowLevel(int window, int level);
     void showPixelCurve(bool flag);
+    void setPixelType(PixelType type);
 //! [0]
 
 
@@ -80,12 +87,11 @@ private:
   void drawRuler();
   void drawCurve();
 
-    QColor qtRed;
-    QColor qtDark;
     dicomImage image;
     bool pixelCurve;
     int imageWindow;
     int imageLevel;
+    PixelType pixelType;
 };
 //! [3]
 

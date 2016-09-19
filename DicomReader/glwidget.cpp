@@ -1,8 +1,6 @@
 #include <GL/glew.h>
 #include "glwidget.h"
 #include "wltool.h"
-#include <iostream>
-#include <fstream>
 
 using namespace std;
 
@@ -12,10 +10,12 @@ namespace {
     GLint alignment = 4;
     unsigned char* pData = 0;
     unsigned char* pDataOriginal = 0;
+    unsigned short* pShortData = 0;
+    unsigned short* pShortOriginalData = 0;
 } //namespace
 
 GLWidget::GLWidget( QWidget *parent)
-  : QGLWidget(parent), pixelCurve(false), imageWindow(255), imageLevel(0)
+  : QGLWidget(parent), pixelCurve(false), imageWindow(255), imageLevel(0), pixelType(BytePixel)
 {
 }
 
@@ -27,8 +27,11 @@ void GLWidget::clean()
 {
   delete[] pData;
   delete[] pDataOriginal;
+  delete[] pShortData;
   pData = 0;
   pDataOriginal = 0;
+  pShortData = 0;
+  pShortOriginalData = 0;
 }
 
 void GLWidget::loadFile(const QString fileName)
@@ -37,6 +40,8 @@ void GLWidget::loadFile(const QString fileName)
   image.setFileName(fileName.toStdString());
   pData = image.pixel();
   pDataOriginal = image.pixel();
+  pShortData = image.shortPixel();
+  pShortOriginalData = image.shortPixel();
   updateGL();
 }
 
@@ -63,6 +68,14 @@ void GLWidget::showPixelCurve(bool flag) {
   updateGL();
 }
 
+void GLWidget::setPixelType(PixelType type) {
+  if (pixelType == type)
+    return;
+
+  pixelType = type;
+  updateGL();
+}
+
 void GLWidget::initializeGL(void)
 {
    glClearColor (0.0, 0.0, 0.0, 0.0);
@@ -74,11 +87,15 @@ void GLWidget::paintGL(void)
 {
 #if 1
    glClear(GL_COLOR_BUFFER_BIT);
-   if (pData == 0) return;
+   if (pData == 0 && pShortData == 0) return;
 
    glRasterPos2i (screenx, screeny);
    glPixelZoom (zoomFactor, zoomFactor);
-   glDrawPixels(image.imageWidth(),  image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_BYTE, pData);
+
+   if (pixelType == BytePixel)
+     glDrawPixels(image.imageWidth(),  image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_BYTE, pData);
+   else
+     glDrawPixels(image.imageWidth(), image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_SHORT, pShortData);
 
    drawPixelCurve();
 
@@ -99,12 +116,20 @@ void GLWidget::resizeGL(int width, int height)
 void GLWidget::setWindowLevel(int window, int level) {
     imageWindow = window;
     imageLevel = level;
-    memcpy(pData, pDataOriginal, image.pixelLength());
+    
     wlTool WLTool(window,level);
-    WLTool.convert(pData, image.pixelLength());
+
+    if (pixelType == BytePixel) {
+      memcpy(pData, pDataOriginal, image.pixelLength());
+      WLTool.convert(pData, image.pixelLength());
+    }
+    else {
+      memcpy(pShortData, pShortOriginalData, image.pixelLength()*2);
+      WLTool.convertShortPixel(pShortData, image.pixelLength()*2);
+    }
+
     updateGL();
 }
-
 
 void GLWidget::drawPixelCurve()
 {
@@ -116,11 +141,15 @@ void GLWidget::drawPixelCurve()
 
 void GLWidget::drawRuler()
 {
-  glColor3f(255.0, 0.0, 0.0);
+  if (pixelType == ShortPixel)
+    return;
+
   GLint xPos = 1;
   const GLint yPos = 10;
-  glBegin(GL_LINES);
+  const int pixelSize = image.imageWidth() * image.imageHeight();
+  const std::vector<int> pixelCount = image.imagePixelCount();
 
+  glBegin(GL_LINES);
   // draw baseline
   glVertex2i(xPos, yPos);
   glVertex2i(512, yPos);
@@ -128,11 +157,19 @@ void GLWidget::drawRuler()
   // draw teeth
   for (int i = 0; i < 256; ++i)
   {
+    glColor3f(255.0, 0.0, 0.0);
     GLint yHight = 5;
     if ((int)xPos % 20 == 1)
       yHight = 10;
     glVertex2i(xPos, yPos);
     glVertex2i(xPos, yPos + yHight);
+
+    if (i == imageLevel)
+    {
+      glColor3f(0.0, 0.0, 255.0);
+      glVertex2i(xPos, yPos);
+      glVertex2f(xPos, (float)pixelCount.at(i) / (float)pixelSize * (float)height() * 10.0 + 30.0);
+    }
     xPos += 2;
   }
 
@@ -143,17 +180,36 @@ void GLWidget::drawCurve()
 {
   const int pixelSize = image.imageWidth() * image.imageHeight();
   GLfloat xPos = 11.0;
-  const std::vector<int> pixelCount = image.imagePixelCount();
-  glBegin(GL_LINE_STRIP);
-  for (int i = 5; i < 256; ++i)
-  {
-    if (i >= imageLevel && i < (imageLevel + imageWindow))
-      glColor3f(255.0, 255.0, 0.0);
-    else
-      glColor3f(0.0, 255.0, 0.0);
+  const double halfWindow = imageWindow / 2.0;
+  if (pixelType == BytePixel) {
+    const std::vector<int> pixelCount = image.imagePixelCount();
+    glBegin(GL_LINE_STRIP);
+    for (int i = 5; i < 256; ++i)
+    {
+      if (i >= (imageLevel - halfWindow) && i < (imageLevel + halfWindow))
+        glColor3f(255.0, 255.0, 0.0);
+      else
+        glColor3f(0.0, 255.0, 0.0);
 
-    glVertex2f(xPos, (float)pixelCount.at(i) / (float)pixelSize * (float)height() * 10.0 + 20.0);
-    xPos += 2.0;
+      glVertex2f(xPos, (float)pixelCount.at(i) / (float)pixelSize * (float)height() * 10.0 + 30.0);
+      xPos += 2.0;
+    }
+    glEnd();
   }
-  glEnd();
+
+  //if (pixelType == ShortPixel) {
+  //  const std::vector<int> pixelCount = image.imageShortPixelCount();
+  //  glBegin(GL_LINE_STRIP);
+  //  for (int i = 5; i < 10000; ++i)
+  //  {
+  //    if (i >= imageLevel && i < (imageLevel + imageWindow))
+  //      glColor3f(255.0, 255.0, 0.0);
+  //    else
+  //      glColor3f(0.0, 255.0, 0.0);
+
+  //    glVertex2f(xPos, (float)pixelCount.at(i) / (float)pixelSize * (float)height() * 10.0 + 20.0);
+  //    xPos += 1;
+  //  }
+  //  glEnd();
+  //}
 }

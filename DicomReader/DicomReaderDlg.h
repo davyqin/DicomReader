@@ -2,7 +2,6 @@
 #define DICOMREADERDLG_H
 
 #include <QDialog>
-#include "glwidget.h"
 #include "ui_dicomreader.h"
 
 class DicomReaderDlg : public QDialog
@@ -18,6 +17,7 @@ private slots:
     void onLoadImage();
     void setZoomFactor(const int value);
     void setWindowLevel();
+    void pixelTypeChanged(const int type);
 
 private:
     Ui::DicomReaderDlg ui;

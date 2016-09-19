@@ -69,6 +69,20 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QComboBox" name="pixelTypeComboBox">
+       <item>
+        <property name="text">
+         <string>8bit Pixel</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>16bit Pixel</string>
+        </property>
+       </item>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>

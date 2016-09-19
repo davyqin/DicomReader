@@ -220,17 +220,15 @@ namespace {
 } // annonymouse namespace
 
 dicomImage::dicomImage()
-  :_pData(0), _pDataOld(0), pixelCount(256, 0)
-{
-}
-
+  :_pData(0), _pDataOld(0), _pShortData(0), pixelCount(256, 0), shortPixelCount(65536, 0) {}
 
 dicomImage::dicomImage(const string& filename)
-  : _fileName(filename), _pData(0), _pDataOld(0), pixelCount(256, 0) {}
+  : _fileName(filename), _pData(0), _pDataOld(0), _pShortData(0), pixelCount(256, 0), shortPixelCount(65536, 0) {}
 
 dicomImage::~dicomImage() {
   delete [] _pData;
   delete [] _pDataOld;
+  delete [] _pShortData;
 }
 
 void dicomImage::setFileName(const string& filename) {
@@ -241,11 +239,16 @@ void dicomImage::setFileName(const string& filename) {
 
   delete[] _pData;
   delete[] _pDataOld;
+  delete[] _pShortData;
   _pData = 0;
   _pDataOld = 0;
+  _pShortData = 0;
 
   pixelCount.clear();
   pixelCount.resize(256);
+
+  shortPixelCount.clear();
+  shortPixelCount.resize(65536);
 }
 
 unsigned char* dicomImage::pixel() {
@@ -259,6 +262,21 @@ unsigned char* dicomImage::pixel() {
 
     unsigned char* pixel = new unsigned char[nLength];
     memcpy(pixel, _pData, nLength);
+    return pixel;
+  }
+}
+
+unsigned short* dicomImage::shortPixel() {
+  if (_fileName.empty()) {
+    return 0;
+  }
+  else {
+    if (!_pShortData) {
+      return 0;
+    }
+
+    unsigned short* pixel = new unsigned short[nLength*2];
+    memcpy(pixel, _pShortData, nLength*2);
     return pixel;
   }
 }
@@ -277,6 +295,10 @@ int dicomImage::imageWidth() const {
 
 const std::vector<int> dicomImage::imagePixelCount() const {
   return pixelCount;
+}
+
+const std::vector<int> dicomImage::imageShortPixelCount() const {
+  return shortPixelCount;
 }
 
 unsigned char*
@@ -1033,23 +1055,25 @@ void dicomImage::readImage()
                 SwapWord((char *)_pData, nLength/2);
         }
 
-        unsigned char* pNewData=UpSideDown(_pData);
+        unsigned char* pRevertedData = UpSideDown(_pData);
 #if 1
         if (nBitsAllocated > 8)
         {
             // We need to convert it to 8-bit.
-            pNewData = convertTo8Bit(pNewData, nLength/2, bIsSigned, nHighBit,
-                                     fRescaleSlope, fRescaleIntercept,
-                                     fWindowCenter, fWindowWidth);
+          unsigned char* pNewData = 
+            convertTo8Bit(pRevertedData, nLength / 2, bIsSigned, nHighBit,
+                          fRescaleSlope, fRescaleIntercept,
+                          fWindowCenter, fWindowWidth);
             // Use the new 8-bit data.
             if (pNewData)
             {
+                _pShortData = (unsigned short*)pRevertedData;
                 delete [] _pData;
                 _pData = pNewData;
                 nBytesP = 1;
                 nFrameSize /= 2;
                 nLength /= 2;
-                //                memcpy(_pDataOld, pNewData, nLength);
+                //memcpy(_pDataOld, pNewData, nLength);
             }
         }
 

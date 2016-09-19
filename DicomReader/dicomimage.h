@@ -17,6 +17,8 @@ public:
 
     unsigned char* pixel();
 
+    unsigned short* shortPixel();
+
     int pixelLength() const;
 
     int imageHeight() const;
@@ -24,6 +26,8 @@ public:
     int imageWidth() const;
 
     const std::vector<int> imagePixelCount() const;
+
+    const std::vector<int> imageShortPixelCount() const;
 
 private:
 
@@ -39,7 +43,9 @@ private:
     std::string _fileName;
     unsigned char* _pData;
     unsigned char* _pDataOld;
+    unsigned short* _pShortData;
     std::vector<int> pixelCount;
+    std::vector<int> shortPixelCount;
 
 };
 
