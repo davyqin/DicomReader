@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 class dicomImage
 {
@@ -15,9 +16,9 @@ public:
 
     void setFileName(const std::string& filename);
 
-    unsigned char* pixel();
+    std::shared_ptr<unsigned char> bytePixel();
 
-    unsigned short* shortPixel();
+    std::shared_ptr<unsigned short> shortPixel();
 
     int pixelLength() const;
 

@@ -2,7 +2,7 @@
 
 #include <fstream>
 #include <iostream>
-#include <memory.h>
+#include <assert.h>
 
 using namespace std;
 
@@ -123,11 +123,14 @@ namespace {
     }
     else
     {
-      pcf.seekg(2, ios::cur);
-      pcf.read((char*)&nsLength, sizeof(int));
+      pcf.seekg(4, ios::cur);
+      short hiByte, loByte;
+      pcf.read((char*)&loByte, 2);
+      pcf.read((char*)&hiByte, 2);
+      nsLength = hiByte << 16 | loByte;
       if (nDataEndian == BIG_ENDIAN)
         SwapWord((char *)&nsLength, 1);
-      nValLength = nsLength >> 16;
+      nValLength = nsLength;
     }
     return nValLength;
   }
@@ -251,32 +254,32 @@ void dicomImage::setFileName(const string& filename) {
   shortPixelCount.resize(65536);
 }
 
-unsigned char* dicomImage::pixel() {
+shared_ptr<unsigned char> dicomImage::bytePixel() {
   if (_fileName.empty()) {
-    return 0;
+    return shared_ptr<unsigned char>();
   }
   else {
     if (!_pData) {
       readImage();
     }
 
-    unsigned char* pixel = new unsigned char[nLength];
-    memcpy(pixel, _pData, nLength);
+    shared_ptr<unsigned char> pixel = shared_ptr<unsigned char>(new unsigned char[nLength]);
+    memcpy(pixel.get(), _pData, nLength);
     return pixel;
   }
 }
 
-unsigned short* dicomImage::shortPixel() {
+shared_ptr<unsigned short> dicomImage::shortPixel() {
   if (_fileName.empty()) {
-    return 0;
+    return shared_ptr<unsigned short>();
   }
   else {
     if (!_pShortData) {
-      return 0;
+      return shared_ptr<unsigned short>();
     }
 
-    unsigned short* pixel = new unsigned short[nLength*2];
-    memcpy(pixel, _pShortData, nLength*2);
+    shared_ptr<unsigned short> pixel = shared_ptr<unsigned short>(new unsigned short[nLength]);
+    memcpy(pixel.get(), _pShortData, 2*nLength);
     return pixel;
   }
 }
@@ -454,6 +457,15 @@ void dicomImage::countPixels()
   {
     const int pixelData = (int)_pData[counter];
     pixelCount[pixelData] = pixelCount.at(pixelData) + 1;
+    ++counter;
+  }
+
+  counter = 0;
+  unsigned short* pp = _pShortData;
+  while (counter < nLength)
+  {
+    const int pixelData = *pp++;
+    shortPixelCount[pixelData] = shortPixelCount.at(pixelData) + 1;
     ++counter;
   }
 }
@@ -720,7 +732,6 @@ void dicomImage::readImage()
       {
         int nVal = ReadOWLength(fp, nDataEndian, bImplicitVR);
         fp.seekg(nVal, ios::cur);
-        fp.seekg(2, ios::cur);
         break;
       }
       default:
@@ -1003,6 +1014,9 @@ void dicomImage::readImage()
             nBytesP = nSamplesPerPixel*nBitsAllocated/8;
             nFrameSize = nCols * nRows * nBytesP;
             nLength = nNumFrames * nFrameSize;
+            const int nVal = ReadOWLength(fp, nDataEndian, bImplicitVR);
+
+            assert(nLength == nVal);
 
             // Parse pixel data
             switch(nCompressionMode)
@@ -1011,7 +1025,6 @@ void dicomImage::readImage()
               {
                 _pData = new unsigned char[nLength + 16];
                 _pDataOld = new unsigned char[nLength + 16];
-                fp.seekg(4,ios::cur);
                 fp.read((char*)_pData, nLength);
                 bPixelData = true;
                 break;
@@ -1073,7 +1086,6 @@ void dicomImage::readImage()
                 nBytesP = 1;
                 nFrameSize /= 2;
                 nLength /= 2;
-                //memcpy(_pDataOld, pNewData, nLength);
             }
         }
 

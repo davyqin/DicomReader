@@ -41,8 +41,11 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
-#include <QGLWidget>
 #include "dicomimage.h"
+
+#include <QGLWidget>
+#include <memory>
+
 
 //! [0]
 class GLWidget : public QGLWidget
@@ -92,6 +95,11 @@ private:
     int imageWindow;
     int imageLevel;
     PixelType pixelType;
+
+    std::shared_ptr<unsigned char> pData;
+    std::shared_ptr<unsigned char> pDataOriginal;
+    std::shared_ptr<unsigned short> pShortData;
+    std::shared_ptr<unsigned short> pShortOriginalData;
 };
 //! [3]
 

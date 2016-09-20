@@ -7,15 +7,12 @@ using namespace std;
 namespace {
     GLdouble zoomFactor = 1.0;
     GLint screeny = 0, screenx = 0;
-    GLint alignment = 4;
-    unsigned char* pData = 0;
-    unsigned char* pDataOriginal = 0;
-    unsigned short* pShortData = 0;
-    unsigned short* pShortOriginalData = 0;
 } //namespace
 
-GLWidget::GLWidget( QWidget *parent)
-  : QGLWidget(parent), pixelCurve(false), imageWindow(255), imageLevel(0), pixelType(BytePixel)
+GLWidget::GLWidget(QWidget *parent)
+  : QGLWidget(parent), pixelCurve(false), imageWindow(255), imageLevel(0), pixelType(BytePixel),
+  pData(shared_ptr<unsigned char>()), pDataOriginal(shared_ptr<unsigned char>()),
+  pShortData(shared_ptr<unsigned short>()), pShortOriginalData(shared_ptr<unsigned short>())
 {
 }
 
@@ -25,21 +22,18 @@ GLWidget::~GLWidget() {
 
 void GLWidget::clean()
 {
-  delete[] pData;
-  delete[] pDataOriginal;
-  delete[] pShortData;
-  pData = 0;
-  pDataOriginal = 0;
-  pShortData = 0;
-  pShortOriginalData = 0;
+  pData.reset();
+  pDataOriginal.reset();
+  pShortData.reset();
+  pShortOriginalData.reset();
 }
 
 void GLWidget::loadFile(const QString fileName)
 {
   clean();
   image.setFileName(fileName.toStdString());
-  pData = image.pixel();
-  pDataOriginal = image.pixel();
+  pData = image.bytePixel();
+  pDataOriginal = image.bytePixel();
   pShortData = image.shortPixel();
   pShortOriginalData = image.shortPixel();
   updateGL();
@@ -79,8 +73,6 @@ void GLWidget::setPixelType(PixelType type) {
 void GLWidget::initializeGL(void)
 {
    glClearColor (0.0, 0.0, 0.0, 0.0);
-   glShadeModel(GL_FLAT);
-   glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
 }
 
 void GLWidget::paintGL(void)
@@ -93,9 +85,9 @@ void GLWidget::paintGL(void)
    glPixelZoom (zoomFactor, zoomFactor);
 
    if (pixelType == BytePixel)
-     glDrawPixels(image.imageWidth(),  image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_BYTE, pData);
+     glDrawPixels(image.imageWidth(),  image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_BYTE, pData.get());
    else
-     glDrawPixels(image.imageWidth(), image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_SHORT, pShortData);
+     glDrawPixels(image.imageWidth(), image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_SHORT, pShortData.get());
 
    drawPixelCurve();
 
@@ -120,12 +112,12 @@ void GLWidget::setWindowLevel(int window, int level) {
     wlTool WLTool(window,level);
 
     if (pixelType == BytePixel) {
-      memcpy(pData, pDataOriginal, image.pixelLength());
-      WLTool.convert(pData, image.pixelLength());
+      memcpy(pData.get(), pDataOriginal.get(), image.pixelLength());
+      WLTool.convert(pData.get(), image.pixelLength());
     }
     else {
-      memcpy(pShortData, pShortOriginalData, image.pixelLength()*2);
-      WLTool.convertShortPixel(pShortData, image.pixelLength()*2);
+      memcpy(pShortData.get(), pShortOriginalData.get(), image.pixelLength()*2);
+      WLTool.convertShortPixel(pShortData.get(), image.pixelLength());
     }
 
     updateGL();
@@ -148,6 +140,7 @@ void GLWidget::drawRuler()
   const GLint yPos = 10;
   const int pixelSize = image.imageWidth() * image.imageHeight();
   const std::vector<int> pixelCount = image.imagePixelCount();
+  glColor3f(255.0, 0.0, 0.0);
 
   glBegin(GL_LINES);
   // draw baseline
@@ -157,7 +150,6 @@ void GLWidget::drawRuler()
   // draw teeth
   for (int i = 0; i < 256; ++i)
   {
-    glColor3f(255.0, 0.0, 0.0);
     GLint yHight = 5;
     if ((int)xPos % 20 == 1)
       yHight = 10;
@@ -166,7 +158,7 @@ void GLWidget::drawRuler()
 
     if (i == imageLevel)
     {
-      glColor3f(0.0, 0.0, 255.0);
+      glColor3f(255.0, 0.0, 0.0);
       glVertex2i(xPos, yPos);
       glVertex2f(xPos, (float)pixelCount.at(i) / (float)pixelSize * (float)height() * 10.0 + 30.0);
     }
@@ -196,20 +188,4 @@ void GLWidget::drawCurve()
     }
     glEnd();
   }
-
-  //if (pixelType == ShortPixel) {
-  //  const std::vector<int> pixelCount = image.imageShortPixelCount();
-  //  glBegin(GL_LINE_STRIP);
-  //  for (int i = 5; i < 10000; ++i)
-  //  {
-  //    if (i >= imageLevel && i < (imageLevel + imageWindow))
-  //      glColor3f(255.0, 255.0, 0.0);
-  //    else
-  //      glColor3f(0.0, 255.0, 0.0);
-
-  //    glVertex2f(xPos, (float)pixelCount.at(i) / (float)pixelSize * (float)height() * 10.0 + 20.0);
-  //    xPos += 1;
-  //  }
-  //  glEnd();
-  //}
 }
