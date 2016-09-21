@@ -124,7 +124,7 @@ namespace {
     else
     {
       pcf.seekg(4, ios::cur);
-      short hiByte, loByte;
+      unsigned short hiByte, loByte;
       pcf.read((char*)&loByte, 2);
       pcf.read((char*)&hiByte, 2);
       nsLength = hiByte << 16 | loByte;
@@ -878,13 +878,13 @@ void dicomImage::readImage()
           }
         case 0x0032: //Image Position (Patient) DS
           {
-            //不合Dicom2006标准
+            //虏禄潞脧Dicom2006卤锚脳录
             WriteToString(fp,&sHeader,"0020,0032 Image Position (Patient): ",nDataEndian,bImplicitVR);
             break;
           }
         case 0x0037: //Image Orientation (Patient) DS
           {
-            //不合Dicom2006标准
+            //虏禄潞脧Dicom2006卤锚脳录
             WriteToString(fp,&sHeader,"0020,0037 Image Orientation (Patient): ",nDataEndian,bImplicitVR);
             break;
           }
@@ -1014,7 +1014,7 @@ void dicomImage::readImage()
             nBytesP = nSamplesPerPixel*nBitsAllocated/8;
             nFrameSize = nCols * nRows * nBytesP;
             nLength = nNumFrames * nFrameSize;
-            const int nVal = ReadOWLength(fp, nDataEndian, bImplicitVR);
+            const long int nVal = ReadOWLength(fp, nDataEndian, bImplicitVR);
 
             assert(nLength == nVal);
 
