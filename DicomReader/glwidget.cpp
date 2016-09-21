@@ -55,6 +55,13 @@ void GLWidget::setZoomFactor(int zoom) {
 }
 
 void GLWidget::showPixelCurve(bool flag) {
+  if (pixelCurve == flag)
+    return;
+
+  updateGL();
+}
+
+void GLWidget::setPixelType(PixelType type) {
   pixelType = type;
 
   if (pixelType == BytePixel)
@@ -62,14 +69,6 @@ void GLWidget::showPixelCurve(bool flag) {
   else
     memcpy(pShortData.get(), pShortOriginalData.get(), image.pixelLength());
 
-  updateGL();
-}
-
-void GLWidget::setPixelType(PixelType type) {
-  if (pixelType == type)
-    return;
-
-  pixelType = type;
   updateGL();
 }
 
