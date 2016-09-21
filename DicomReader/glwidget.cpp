@@ -58,6 +58,7 @@ void GLWidget::showPixelCurve(bool flag) {
   if (pixelCurve == flag)
     return;
 
+  pixelCurve = flag;
   updateGL();
 }
 
