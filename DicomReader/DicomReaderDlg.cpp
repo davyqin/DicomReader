@@ -40,7 +40,6 @@ void DicomReaderDlg::onLoadImage() {
   }
 }
 
-
 void DicomReaderDlg::setZoomFactor(const int value) {
   ui.zoomValue->setText(QString::number(value));
   ui.glWidget->setZoomFactor(value);
@@ -54,17 +53,17 @@ void DicomReaderDlg::setWindowLevel() {
 
 void DicomReaderDlg::pixelTypeChanged(const int type) {
   if (type == 0) {
-    ui.glWidget->setPixelType(GLWidget::BytePixel);
     ui.windowSlider->setMaximum(255);
     ui.levelSlider->setMaximum(255);
     ui.windowSlider->setValue(255);
     ui.levelSlider->setValue(0);
+    ui.glWidget->setPixelType(GLWidget::BytePixel);
   }
   else {
-    ui.glWidget->setPixelType(GLWidget::ShortPixel);
     ui.windowSlider->setMaximum(65535);
     ui.levelSlider->setMaximum(65535);
     ui.windowSlider->setValue(65535);
     ui.levelSlider->setValue(0);
+    ui.glWidget->setPixelType(GLWidget::ShortPixel);
   }
 }
