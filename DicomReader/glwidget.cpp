@@ -55,10 +55,13 @@ void GLWidget::setZoomFactor(int zoom) {
 }
 
 void GLWidget::showPixelCurve(bool flag) {
-  if (pixelCurve == flag)
-    return;
+  pixelType = type;
 
-  pixelCurve = flag;
+  if (pixelType == BytePixel)
+    memcpy(pData.get(), pDataOriginal.get(), image.pixelLength());
+  else
+    memcpy(pShortData.get(), pShortOriginalData.get(), image.pixelLength());
+
   updateGL();
 }
 
@@ -116,7 +119,7 @@ void GLWidget::setWindowLevel(int window, int level) {
       WLTool.convert(pData.get(), image.pixelLength());
     }
     else {
-      memcpy(pShortData.get(), pShortOriginalData.get(), image.pixelLength()*2);
+      memcpy(pShortData.get(), pShortOriginalData.get(), image.pixelLength());
       WLTool.convertShortPixel(pShortData.get(), image.pixelLength());
     }
 
