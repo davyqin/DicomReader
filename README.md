@@ -5,4 +5,13 @@ This project is created to be the demo of my presentation for DICOM introduction
 Dependencies: OpenGL4.0 and newer versions, [glew](http://glew.sourceforge.net/) and [QT](https://www.qt.io).
 
 **Here are screen shot**   
-![DicomReader](https://github.com/davyqin/DicomReader/blob/master/DicomReader.png)
+![DicomReader](./DicomReader.png)
+
+**How to build project on Linux**
+
+* cd DicomReader/DicomReader folder
+* mkdir build
+* cd build
+* cmake ..
+* make
+* find the execute file in ../bin folder
