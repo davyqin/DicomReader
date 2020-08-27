@@ -5,7 +5,8 @@ project(DicomReader)
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
-#set(CMAKE_CXX_FLAGS "-std=c++11 -o3 -Wall -lGL -lGLU -lglut")
+#set(CMAKE_CXX_FLAGS "-std=c++11 -o3 -Wall -lGL -lGLU -lglut -fpermissive")
+#set(CMAKE_CXX_FLAGS "-std=c++11 -o3 -Wall")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -37,6 +38,28 @@ if(NOT OPENGL_FOUND)
     message(ERROR " OPENGL not found!")
 endif(NOT OPENGL_FOUND)
 
+#########################################################
+# FIND DCMTK
+#########################################################
+find_package(DCMTK REQUIRED)
+include_directories(${DCMTK_INCLUDE_DIRS})
+link_directories(${DCMTK_LIBRARY_DIRS})
+add_definitions(${DCMTK_DEFINITIONS})
+if(NOT DCMTK_FOUND)
+    message(ERROR " DCMTK not found!")
+endif(NOT DCMTK_FOUND)
+
+#########################################################
+# FIND Boost
+#########################################################
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+link_directories(${Boost_LIBRARY_DIRS})
+add_definitions(${Boost_DEFINITIONS})
+if(NOT Boost_FOUND)
+    message(ERROR " Boost not found!")
+endif(NOT Boost_FOUND)
+
 find_package(Qt5Widgets)
 find_package(Qt5Core)
 find_package(Qt5Gui)
@@ -55,6 +78,6 @@ source_group("UI" FILES ${UI_FILES} ${WRAP_FILES})
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${HEAD_FILES})
 
-target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Core Qt5::Gui Qt5::OpenGL ${OPENGL_LIBRARIES} ${GLUT_LIBRARY})
+target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Core Qt5::Gui Qt5::OpenGL ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} ${DCMTK_LIBRARIES} ${Boost_LIBRARIES})
 
 set (EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)

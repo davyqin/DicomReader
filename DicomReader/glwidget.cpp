@@ -1,6 +1,8 @@
 #include <GL/glew.h>
+
 #include "glwidget.h"
-#include "wltool.h"
+#include "Image.h"
+#include "DicomUtilImpl.h"
 
 using namespace std;
 
@@ -11,7 +13,7 @@ namespace {
 
 GLWidget::GLWidget(QWidget *parent)
   : QGLWidget(parent), pixelCurve(false), imageWindow(255), imageLevel(0), pixelType(BytePixel),
-  pData(shared_ptr<unsigned char>()), pDataOriginal(shared_ptr<unsigned char>()),
+  image(shared_ptr<Image>()), pData(shared_ptr<unsigned char>()), pDataOriginal(shared_ptr<unsigned char>()),
   pShortData(shared_ptr<unsigned short>()), pShortOriginalData(shared_ptr<unsigned short>())
 {
 }
@@ -31,23 +33,39 @@ void GLWidget::clean()
 void GLWidget::loadFile(const QString fileName)
 {
   clean();
-  image.setFileName(fileName.toStdString());
-  pData = image.bytePixel();
-  pDataOriginal = image.bytePixel();
-  pShortData = image.shortPixel();
-  pShortOriginalData = image.shortPixel();
+
+  DicomUtilImpl dicomUtil(fileName.toStdString());
+  image = dicomUtil.fetchImage();
+  pData = image->pixelData8bit();
+  pDataOriginal = image->pixelData8bit();
+  pShortData = image->pixelData();
+  pShortOriginalData = image->pixelData();
   updateGL();
 }
 
 QSize GLWidget::minimumSizeHint() const
 {
-    return QSize(image.imageWidth(), image.imageHeight());
+  if (image)
+  {
+    return QSize(image->width(), image->height());
+  }
+  else
+  {
+    return QSize(1024, 1024);
+  }
 }
 
-QSize GLWidget::sizeHint() const
-{
-    return QSize(image.imageWidth(), image.imageHeight());
-}
+// QSize GLWidget::sizeHint() const
+// {
+//   if (image)
+//   {
+//     return QSize(image->width(), image->height());
+//   }
+//   else
+//   {
+//     return QSize(1024, 1024);
+//   }  
+// }
 
 void GLWidget::setZoomFactor(int zoom) {
     zoomFactor = 0.1 * zoom;
@@ -66,9 +84,9 @@ void GLWidget::setPixelType(PixelType type) {
   pixelType = type;
 
   if (pixelType == BytePixel)
-    memcpy(pData.get(), pDataOriginal.get(), image.pixelLength());
+    memcpy(pData.get(), pDataOriginal.get(), image->pixelLength());
   else
-    memcpy(pShortData.get(), pShortOriginalData.get(), image.pixelLength());
+    memcpy(pShortData.get(), pShortOriginalData.get(), image->pixelLength());
 
   updateGL();
 }
@@ -88,9 +106,9 @@ void GLWidget::paintGL(void)
    glPixelZoom (zoomFactor, zoomFactor);
 
    if (pixelType == BytePixel)
-     glDrawPixels(image.imageWidth(),  image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_BYTE, pData.get());
+     glDrawPixels(image->width(), image->height(), GL_LUMINANCE, GL_UNSIGNED_BYTE, image->pixelData8bit().get());
    else
-     glDrawPixels(image.imageWidth(), image.imageHeight(), GL_LUMINANCE, GL_UNSIGNED_SHORT, pShortData.get());
+     glDrawPixels(image->width(), image->height(), GL_LUMINANCE, GL_UNSIGNED_SHORT, image->pixelData().get());
 
    drawPixelCurve();
 
@@ -112,16 +130,7 @@ void GLWidget::setWindowLevel(int window, int level) {
     imageWindow = window;
     imageLevel = level;
     
-    wlTool WLTool(window,level);
-
-    if (pixelType == BytePixel) {
-      memcpy(pData.get(), pDataOriginal.get(), image.pixelLength());
-      WLTool.convert(pData.get(), image.pixelLength());
-    }
-    else {
-      memcpy(pShortData.get(), pShortOriginalData.get(), image.pixelLength());
-      WLTool.convertShortPixel(pShortData.get(), image.pixelLength());
-    }
+    image->updateWL(window, level);
 
     updateGL();
 }
@@ -141,8 +150,8 @@ void GLWidget::drawRuler()
 
   GLint xPos = 1;
   const GLint yPos = 10;
-  const int pixelSize = image.imageWidth() * image.imageHeight();
-  const std::vector<int> pixelCount = image.imagePixelCount();
+  const int pixelSize = image->width() * image->height();
+  const std::vector<int> pixelCount(256, 0);
   glColor3f(255.0, 0.0, 0.0);
 
   glBegin(GL_LINES);
@@ -173,11 +182,11 @@ void GLWidget::drawRuler()
 
 void GLWidget::drawCurve()
 {
-  const int pixelSize = image.imageWidth() * image.imageHeight();
+  const int pixelSize = image->width() * image->height();
   GLfloat xPos = 11.0;
   const double halfWindow = imageWindow / 2.0;
   if (pixelType == BytePixel) {
-    const std::vector<int> pixelCount = image.imagePixelCount();
+    const std::vector<int> pixelCount(256, 0);
     glBegin(GL_LINE_STRIP);
     for (int i = 5; i < 256; ++i)
     {

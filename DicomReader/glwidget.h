@@ -41,10 +41,12 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
-#include "dicomimage.h"
+//#include "dicomimage.h"
 
 #include <QGLWidget>
 #include <memory>
+
+class Image;
 
 
 //! [0]
@@ -63,7 +65,7 @@ public:
     ~GLWidget();
 
     QSize minimumSizeHint() const;
-    QSize sizeHint() const;
+    //QSize sizeHint() const;
 
     void clean();
 
@@ -86,16 +88,17 @@ protected:
 
 //! [3]
 private:
-  void drawPixelCurve();
-  void drawRuler();
-  void drawCurve();
+    void drawPixelCurve();
+    void drawRuler();
+    void drawCurve();
 
-    dicomImage image;
+    //dicomImage image;
     bool pixelCurve;
     int imageWindow;
     int imageLevel;
     PixelType pixelType;
 
+    std::shared_ptr<Image> image;
     std::shared_ptr<unsigned char> pData;
     std::shared_ptr<unsigned char> pDataOriginal;
     std::shared_ptr<unsigned short> pShortData;
