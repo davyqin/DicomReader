@@ -2,7 +2,8 @@
 
 #include <fstream>
 #include <iostream>
-#include <assert.h>
+#include <cstring>
+#include <cassert>
 
 using namespace std;
 
@@ -13,8 +14,8 @@ namespace {
 
   enum DATA_ENDIAN
   {
-    LITTLE_ENDIAN,
-    BIG_ENDIAN
+    FILE_LITTLE_ENDIAN = 0,
+    FILE_BIG_ENDIAN
   };
 
   enum COMPRESSION_MODE
@@ -70,8 +71,9 @@ namespace {
   {
     int lVal = 0;
     pcf.seekg(4, ios::cur);
-    pcf.read((char *)&lVal, sizeof(long));
-    if(nDataEndian==BIG_ENDIAN) {
+    //pcf.read((char *)&lVal, sizeof(long));
+    pcf.read((char *)&lVal, 4);
+    if(nDataEndian==FILE_BIG_ENDIAN) {
       SwapDWord((char *) &lVal, 1);
     }
     return lVal;
@@ -81,8 +83,9 @@ namespace {
   {
     int lVal = 0;
     fseek(pcf, 4, SEEK_CUR);
-    fread(&lVal,sizeof(long),1,pcf);
-    if(nDataEndian==BIG_ENDIAN) {
+    //fread(&lVal,sizeof(long),1,pcf);
+    fread(&lVal,4,1,pcf);
+    if(nDataEndian==FILE_BIG_ENDIAN) {
       SwapDWord((char *) &lVal, 1);
     }
     return lVal;
@@ -91,19 +94,20 @@ namespace {
   long ReadLength(fstream& pcf, DATA_ENDIAN nDataEndian, bool bImplicitVR)
   {
     long int nValLength = 0;
-    short int nsLength;
+    short int nsLength = 0;
 
     if (bImplicitVR)
     {
-      pcf.read((char *)&nValLength, sizeof(long));
-      if (nDataEndian == BIG_ENDIAN)
+      //pcf.read((char *)&nValLength, sizeof(long));
+      pcf.read((char *)&nValLength, 4);
+      if (nDataEndian == FILE_BIG_ENDIAN)
         SwapDWord((char *) &nValLength, 1);
     }
     else
     {
       pcf.seekg(2,ios::cur);
       pcf.read((char*)&nsLength, sizeof(short));
-      if (nDataEndian == BIG_ENDIAN)
+      if (nDataEndian == FILE_BIG_ENDIAN)
         SwapWord((char *) &nsLength, 1);
       nValLength = nsLength;
     }
@@ -117,8 +121,9 @@ namespace {
 
     if (bImplicitVR)
     {
-      pcf.read((char *)&nValLength, sizeof(long));
-      if (nDataEndian == BIG_ENDIAN)
+      //pcf.read((char *)&nValLength, sizeof(long));
+      pcf.read((char *)&nValLength, 4);
+      if (nDataEndian == FILE_BIG_ENDIAN)
         SwapDWord((char *)&nValLength, 1);
     }
     else
@@ -128,7 +133,7 @@ namespace {
       pcf.read((char*)&loByte, 2);
       pcf.read((char*)&hiByte, 2);
       nsLength = hiByte << 16 | loByte;
-      if (nDataEndian == BIG_ENDIAN)
+      if (nDataEndian == FILE_BIG_ENDIAN)
         SwapWord((char *)&nsLength, 1);
       nValLength = nsLength;
     }
@@ -186,7 +191,7 @@ namespace {
     unsigned short nVal;
     pcf.seekg(4,ios::cur);
     pcf.read((char*)&nVal, sizeof(short)); // read the unsigned short value
-    if (nDataEndian == BIG_ENDIAN)
+    if (nDataEndian == FILE_BIG_ENDIAN)
       SwapWord((char *) &nVal, 1);
 
     return (int) nVal;
@@ -479,7 +484,7 @@ void dicomImage::readImage()
   bool bIsSigned = false;
   bool bImplicitVR = true;
   COMPRESSION_MODE nCompressionMode = COMPRESS_NONE;
-  DATA_ENDIAN nDataEndian = LITTLE_ENDIAN;
+  DATA_ENDIAN nDataEndian = FILE_LITTLE_ENDIAN;
   double nThickness = 0.0;
   short int gTag, eTag;
   int nNumFrames = 1;
@@ -501,7 +506,7 @@ void dicomImage::readImage()
 
   string sHeader;
 
-  while(!fp.eof()) {
+  while(!fp.eof() || !bPixelData) {
 
     if (bPixelData) {
       break;
@@ -509,12 +514,12 @@ void dicomImage::readImage()
 
     fp.read((char *)&gTag, sizeof(short));
 
-    if (nDataEndian == BIG_ENDIAN) {
+    if (nDataEndian == FILE_BIG_ENDIAN) {
       SwapWord((char *) &gTag, 1);
     }
 
     fp.read((char *)&eTag, sizeof(short));
-    if (nDataEndian == BIG_ENDIAN) {
+    if (nDataEndian == FILE_BIG_ENDIAN) {
       SwapWord((char *)&eTag, 1);
     }
 
@@ -546,13 +551,13 @@ void dicomImage::readImage()
           }
         case 0x0010: //Transfer Syntax UID UI
           {
-            if (ReadString(fp, szTransferSyntaxUID, LITTLE_ENDIAN, false) != 0)
+            if (ReadString(fp, szTransferSyntaxUID, FILE_LITTLE_ENDIAN, false) != 0)
               break;
 
             if (!strcmp(szTransferSyntaxUID, "1.2.840.10008.1.2.2")) // Explicit VR Big Endian
-              nDataEndian = BIG_ENDIAN; // Big Endian
+              nDataEndian = FILE_BIG_ENDIAN; // Big Endian
             else
-              nDataEndian = LITTLE_ENDIAN; // Little Endian
+              nDataEndian = FILE_LITTLE_ENDIAN; // Little Endian
 
             // Check if it is implicit VR or Explicit VR
             if (!strcmp(szTransferSyntaxUID, "1.2.840.10008.1.2")) // Implicit VR Little Endian
@@ -1062,7 +1067,7 @@ void dicomImage::readImage()
     if (_pData) // Have we got the pixel data?
     {
         // Need to do byte swap?
-        if (nDataEndian == BIG_ENDIAN)
+        if (nDataEndian == FILE_BIG_ENDIAN)
         {
             if (nBitsAllocated > 8)
                 SwapWord((char *)_pData, nLength/2);
