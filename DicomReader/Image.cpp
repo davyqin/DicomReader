@@ -5,16 +5,43 @@
 
 #include <boost/assign/list_of.hpp>
 
+#include <iostream>
+
 using namespace std;
 
 namespace {
-bool doublesAreEqual(double d1, double d2) {
-  return std::fabs(d1 - d2) < std::numeric_limits<double>::epsilon();
-}
+  bool doublesAreEqual(double d1, double d2) {
+    return std::fabs(d1 - d2) < std::numeric_limits<double>::epsilon();
+  }
 
-const std::vector<double> transOri = boost::assign::list_of(1.0)(0.0)(0.0)(0.0)(1.0)(0.0);
-const std::vector<double> coroOri = boost::assign::list_of(1.0)(0.0)(0.0)(0.0)(0.0)(1.0);
-const std::vector<double> sagiOri = boost::assign::list_of(0.0)(1.0)(0.0)(0.0)(0.0)(1.0);
+  const std::vector<double> transOri = boost::assign::list_of(1.0)(0.0)(0.0)(0.0)(1.0)(0.0);
+  const std::vector<double> coroOri = boost::assign::list_of(1.0)(0.0)(0.0)(0.0)(0.0)(1.0);
+  const std::vector<double> sagiOri = boost::assign::list_of(0.0)(1.0)(0.0)(0.0)(0.0)(1.0);
+
+  template<typename T>
+  void applyWindowLevel(int window, int level, int count, T* originalPixel, T* resultPixel)
+  {
+
+    T maxValue = std::numeric_limits<T>::max();
+    const double dSlope = (maxValue == window) ? 1.0 : (double)maxValue / (double)window;
+    const double dShift = (double)level - (double)window / 2.0;
+
+    while (count-- > 0) {
+      double value = ((double)(*originalPixel) - dShift) * dSlope;
+
+      if (value <= 0.0) {
+        value = 0.0;
+      }
+      else if (value >= (double)maxValue) {
+        value = maxValue;
+      }
+      
+      *resultPixel = static_cast<T>(value);
+      ++originalPixel;
+      ++resultPixel;      
+    }
+  }
+
 }
 
 class Image::Pimpl
@@ -120,21 +147,7 @@ shared_ptr<unsigned short> Image::pixelData() const {
     unsigned short* np = _pimpl->outputPixel.get();
     unsigned short* pp = _pimpl->pixelData.get();
 
-    const double dSlope = 65535.0 / (double)_pimpl->window;
-    const double dShift = (double)_pimpl->level - (double)_pimpl->window / 2.0;
-
-    while (nCount-- > 0) {
-      int value = ((int)*pp - dShift) * dSlope;
-      if (value <= 0) {
-        value = 0;
-      }
-      else if (value >= 65535) {
-        value = 65535;
-      }
-      
-      *np = static_cast<unsigned short>(value);
-      ++np; ++pp;      
-    }
+    applyWindowLevel<unsigned short>(_pimpl->window, _pimpl->level, _pimpl->pixelLength, pp, np);
   }
 
   return _pimpl->outputPixel;
@@ -145,26 +158,9 @@ shared_ptr<unsigned char> Image::pixelData8bit() const {
     int nCount = _pimpl->pixelLength;
     _pimpl->outputPixel8bit.reset(new unsigned char[_pimpl->pixelLength + 16]);
     unsigned char* np = _pimpl->outputPixel8bit.get();
-    const unsigned char* pp = _pimpl->pixelData8bit.get();
-    
-    const double halfWindow = (double)_pimpl->window / 2.0;
-    while (nCount-- > 0)
-    {
-      if (*pp < ((double)_pimpl->level - halfWindow)) {
-            *np = 0;
-        }
-      else if (*pp > ((double)_pimpl->level + halfWindow)) {
-            *np = 0;
-        }
-        else {
-          if (_pimpl->window == 0) 
-            *np = 255;
-          else
-            *np = (*pp - _pimpl->level) * 255.0 /(double)_pimpl->window;
-        }
-        np++;
-        pp++;
-    }
+    unsigned char* pp = _pimpl->pixelData8bit.get();
+
+    applyWindowLevel<unsigned char>(_pimpl->window, _pimpl->level, _pimpl->pixelLength, pp, np);
   }
 
   return _pimpl->outputPixel8bit;

@@ -8,6 +8,7 @@
 
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/exception/exception.hpp>
 
 #include <vector>
 
@@ -278,6 +279,157 @@ public:
     }
   }
 
+  void readFile()
+  {
+    if (this->fileName.empty()) {
+      return;
+    }
+
+    DcmFileFormat dcmff;
+
+    // Open DICOM file to read patient/study/series information from
+    OFCondition cond = dcmff.loadFile(this->fileName.c_str());
+    if (cond.bad()) 
+      return;
+
+    DcmDataset* srcDset = dcmff.getDataset();
+    if (srcDset == NULL) 
+      return;
+
+    try 
+    {
+      //Slice Thickness DS
+      sliceThickness = readDicomValue<double>(DCM_SliceThickness, srcDset);
+    }
+    catch (const DicomUtilImplException&)
+    {
+      sliceThickness = 0.0;
+    }
+    
+    try 
+    {
+      //Image Position (Patient) DS
+      imagePosition = readDicomValueArray(DCM_ImagePositionPatient, srcDset);
+    }
+    catch (const DicomUtilImplException&)
+    {
+    }
+
+    try
+    {
+    //Image Orientation (Patient) DS
+      imageOrientation = readDicomValueArray(DCM_ImageOrientationPatient, srcDset);
+    }
+    catch(const DicomUtilImplException&)
+    {
+    }
+
+    //Number of frames IS
+    try 
+    {
+      nNumFrames = readDicomValue<int>(DCM_NumberOfFrames, srcDset);
+    }
+    catch (const DicomUtilImplException&)
+    {
+      nNumFrames = 1;
+    }
+
+    //Rows US
+    srcDset->findAndGetUint16(DCM_Rows, this->nRows);
+
+    //Columns US
+    srcDset->findAndGetUint16(DCM_Columns, this->nCols);
+
+    //Pixel Spacing DS
+    try 
+    {
+      this->pixelSpacing = readDicomValueArray(DCM_PixelSpacing, srcDset);
+      this->pixelSpacing.push_back(this->sliceThickness);
+    }
+    catch (const DicomUtilImplException&)
+    {
+    }
+
+    //Bits Allocated US
+    srcDset->findAndGetUint16(DCM_BitsAllocated, this->nBitsAllocated);
+
+    //High Bit US
+    this->nHighBit = readDicomValue<unsigned short>(DCM_HighBit, srcDset);
+
+    //Pixel Representation US
+    this->bIsSigned = readDicomValue<bool>(DCM_PixelRepresentation, srcDset);
+
+    //Window Center DS
+    try
+    {
+      this->fWindowCenter = readDicomValue<double>(DCM_WindowCenter, srcDset);
+    }
+    catch (const DicomUtilImplException&)
+    {
+      this->fWindowCenter = -1.0;
+    }
+
+    //Window Width DS
+    try 
+    {
+      this->fWindowWidth = readDicomValue<double>(DCM_WindowWidth, srcDset);
+    }
+    catch (const DicomUtilImplException&)
+    {
+      this->fWindowWidth = -1.0;
+    }
+
+    //Rescale Intercept DS
+    try 
+    {
+      this->fRescaleIntercept = readDicomValue<double>(DCM_RescaleIntercept, srcDset);
+    }
+    catch (const DicomUtilImplException&)
+    {
+    }
+
+    //Rescale Slope DS
+    try 
+    {
+      this->fRescaleSlope = readDicomValue<double>(DCM_RescaleSlope, srcDset);
+    }
+    catch (const DicomUtilImplException&)
+    {
+    }
+
+    unsigned short nSamplesPerPixel = 0;
+    srcDset->findAndGetUint16(DCM_SamplesPerPixel, nSamplesPerPixel);
+
+    this->nBytesP = nSamplesPerPixel * this->nBitsAllocated / 8;
+    this->nFrameSize = this->nCols * this->nRows * this->nBytesP;
+    this->nLength = this->nNumFrames * this->nFrameSize;
+
+    this->pixelData.reset(new unsigned char[this->nLength + 16]);
+
+    DcmElement* element = NULL;
+    srcDset->chooseRepresentation(EXS_LittleEndianExplicit, NULL);
+    cond = srcDset->findAndGetElement(DCM_PixelData, element);
+    if (cond.bad() || element == NULL)
+      return;
+
+    unsigned char* pImage = NULL;
+    element->getUint8Array(pImage);
+
+    memcpy(this->pixelData.get(), pImage, this->nLength);
+
+    if (this->pixelData) // Have we got the pixel data?
+    {
+      // Need to do byte swap?
+      // if (nDataEndian == BIG_ENDIAN_DATA && _pimpl->nBitsAllocated > 8) {
+      //   SwapWord((char *)_pimpl->pixelData.get(), _pimpl->nLength / 2);
+      // }
+
+      this->pixelData = UpSideDown(this->pixelData, this->nCols, this->nRows, this->nBytesP, this->nLength);
+
+      imageAdjuestment();
+    }
+  }
+
  }; 
 
 
@@ -290,8 +442,7 @@ DicomUtilImpl::DicomUtilImpl(const std::string& fileName)
 :_pimpl(new Pimpl())
 {
   _pimpl->fileName = fileName;
-
-  readFile();
+  _pimpl->readFile();
 }
 
 DicomUtilImpl::~DicomUtilImpl()
@@ -306,18 +457,14 @@ std::shared_ptr<Image> DicomUtilImpl::fetchImage() const {
   std::shared_ptr<Image> image(new Image(_pimpl->pixelData16, _pimpl->pixelData8, _pimpl->nLength/2));
   image->setPosition(_pimpl->imagePosition);
   image->setSize(_pimpl->nCols, _pimpl->nRows);
-  image->setOrientation(_pimpl->imageOrientation);
-  image->setPixelSpacing(_pimpl->pixelSpacing);
+  //image->setOrientation(_pimpl->imageOrientation);
+  //image->setPixelSpacing(_pimpl->pixelSpacing);
   return image;
 }
 
 std::shared_ptr<unsigned short> DicomUtilImpl::pixel() {
-  if (_pimpl->fileName.empty()) {
-    return std::shared_ptr<unsigned short>();
-  }
-
   if (!_pimpl->pixelData16) {
-    readFile();
+    _pimpl->readFile();
   }
 
   return _pimpl->pixelData16;
@@ -337,114 +484,4 @@ int DicomUtilImpl::imageWidth() const {
 
 bool DicomUtilImpl::hasPixelData() const {
   return (_pimpl->pixelData.get() != 0);
-}
-
-void DicomUtilImpl::readFile()
-{
-  DcmFileFormat dcmff;
-
-  // Open DICOM file to read patient/study/series information from
-  OFCondition cond = dcmff.loadFile(_pimpl->fileName.c_str());
-  if (cond.bad()) 
-    return;
-
-  DcmDataset* srcDset = dcmff.getDataset();
-  if (srcDset == NULL) 
-    return;
-
-  //Slice Thickness DS
-  _pimpl->sliceThickness = readDicomValue<double>(DCM_SliceThickness, srcDset);
-
-  //Image Position (Patient) DS
-  _pimpl->imagePosition = readDicomValueArray(DCM_ImagePositionPatient, srcDset);
-
-  //Image Orientation (Patient) DS
-  _pimpl->imageOrientation = readDicomValueArray(DCM_ImageOrientationPatient, srcDset);
-
-  //Number of frames IS
-  try 
-  {
-    _pimpl->nNumFrames = readDicomValue<int>(DCM_NumberOfFrames, srcDset);
-  }
-  catch (const DicomUtilImplException&)
-  {
-    _pimpl->nNumFrames = 1;
-  }
-
-  //Rows US
-  srcDset->findAndGetUint16(DCM_Rows, _pimpl->nRows);
-
-  //Columns US
-  srcDset->findAndGetUint16(DCM_Columns, _pimpl->nCols);
-
-  //Pixel Spacing DS
-  _pimpl->pixelSpacing = readDicomValueArray(DCM_PixelSpacing, srcDset);
-  _pimpl->pixelSpacing.push_back(_pimpl->sliceThickness);
-
-  //Bits Allocated US
-  srcDset->findAndGetUint16(DCM_BitsAllocated, _pimpl->nBitsAllocated);
-
-  //High Bit US
-  _pimpl->nHighBit = readDicomValue<unsigned short>(DCM_HighBit, srcDset);
-
-  //Pixel Representation US
-  _pimpl->bIsSigned = readDicomValue<bool>(DCM_PixelRepresentation, srcDset);
-
-  //Window Center DS
-  try
-  {
-    _pimpl->fWindowCenter = readDicomValue<double>(DCM_WindowCenter, srcDset);
-  }
-  catch (const DicomUtilImplException&)
-  {
-    _pimpl->fWindowCenter = -1.0;
-  }
-
-  //Window Width DS
-  try 
-  {
-    _pimpl->fWindowWidth = readDicomValue<double>(DCM_WindowWidth, srcDset);
-  }
-  catch (const DicomUtilImplException&)
-  {
-    _pimpl->fWindowWidth = -1.0;
-  }
-
-  //Rescale Intercept DS
-  _pimpl->fRescaleIntercept = readDicomValue<double>(DCM_RescaleIntercept, srcDset);
-
-  //Rescale Slope DS
-  _pimpl->fRescaleSlope = readDicomValue<double>(DCM_RescaleSlope, srcDset);
-
-  unsigned short nSamplesPerPixel = 0;
-  srcDset->findAndGetUint16(DCM_SamplesPerPixel, nSamplesPerPixel);
-
-  _pimpl->nBytesP = nSamplesPerPixel * _pimpl->nBitsAllocated / 8;
-  _pimpl->nFrameSize = _pimpl->nCols * _pimpl->nRows * _pimpl->nBytesP;
-  _pimpl->nLength = _pimpl->nNumFrames * _pimpl->nFrameSize;
-
-  _pimpl->pixelData.reset(new unsigned char[_pimpl->nLength + 16]);
-
-  DcmElement* element = NULL;
-  srcDset->chooseRepresentation(EXS_LittleEndianExplicit, NULL);
-  cond = srcDset->findAndGetElement(DCM_PixelData, element);
-  if (cond.bad() || element == NULL)
-    return;
-
-  unsigned char* pImage = NULL;
-  element->getUint8Array(pImage);
-
-  memcpy(_pimpl->pixelData.get(), pImage, _pimpl->nLength);
-
-  if (_pimpl->pixelData) // Have we got the pixel data?
-  {
-    // Need to do byte swap?
-    // if (nDataEndian == BIG_ENDIAN_DATA && _pimpl->nBitsAllocated > 8) {
-    //   SwapWord((char *)_pimpl->pixelData.get(), _pimpl->nLength / 2);
-    // }
-
-    _pimpl->pixelData = UpSideDown(_pimpl->pixelData, _pimpl->nCols, _pimpl->nRows, _pimpl->nBytesP, _pimpl->nLength);
-
-    _pimpl->imageAdjuestment();
-  }
 }

@@ -43,8 +43,6 @@ public:
 
 private:
 
-  void readFile();
-
   class Pimpl;
   std::unique_ptr<Pimpl> _pimpl;
 };
